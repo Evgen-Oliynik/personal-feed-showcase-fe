@@ -2,11 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
-import { ApiError, api } from "@/lib/api";
+import { api } from "@/lib/api";
+import { MAX_TOPICS, readTopics, writeTopics } from "@/lib/topics-store";
 
-const MAX_TOPICS = 10;
 const LIMIT_MESSAGE = "You can follow up to 10 topics";
 const INVALID_MESSAGE = "Use 1–40 letters, digits, spaces or . + # -";
+
+const NAME = /^[\p{L}\p{N} .+#-]{1,40}$/u;
 
 const chip =
   "inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border px-4 py-2 text-sm";
@@ -21,14 +23,6 @@ function sameSet(a: string[], b: string[]): boolean {
   return a.length === b.length && a.every((name) => b.includes(name));
 }
 
-function saveErrorMessage(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (error.status === 400) return INVALID_MESSAGE;
-    if (error.status === 422) return LIMIT_MESSAGE;
-  }
-  return "Could not save your topics. Try again.";
-}
-
 export function TopicsEditor() {
   const router = useRouter();
   const [saved, setSaved] = useState<string[] | null>(null);
@@ -36,20 +30,20 @@ export function TopicsEditor() {
   const [selection, setSelection] = useState<string[]>([]);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([api.getTopics(), api.getSuggestions()])
-      .then(([topics, names]) => {
-        if (cancelled) return;
-        const current = topics.map((t) => normalize(t.name));
-        setSaved(current);
-        setSelection(current);
-        setSuggestions(names.map(normalize));
+    const current = readTopics();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is browser-only
+    setSaved(current);
+    setSelection(current);
+    api
+      .getSuggestions()
+      .then((names) => {
+        if (!cancelled) setSuggestions(names.map(normalize));
       })
       .catch(() => {
-        if (!cancelled) setError("Could not load your topics. Reload to try again.");
+        if (!cancelled) setError("Could not load suggestions. Reload to try again.");
       });
     return () => {
       cancelled = true;
@@ -59,6 +53,10 @@ export function TopicsEditor() {
   function add(name: string) {
     const value = normalize(name);
     if (!value || selection.includes(value)) return false;
+    if (!NAME.test(value)) {
+      setError(INVALID_MESSAGE);
+      return false;
+    }
     if (selection.length >= MAX_TOPICS) {
       setError(LIMIT_MESSAGE);
       return false;
@@ -83,24 +81,18 @@ export function TopicsEditor() {
     if (add(draft)) setDraft("");
   }
 
-  async function save() {
-    setSaving(true);
+  function save() {
     setError(null);
-    try {
-      await api.replaceTopics(selection);
-      // The router keeps this page's state alive while hidden (cacheComponents),
-      // so a returning visit must not find Save stuck in flight.
-      setSaving(false);
-      router.push("/");
-    } catch (e) {
-      setError(saveErrorMessage(e));
-      setSaving(false);
+    if (!writeTopics(selection)) {
+      setError("Could not save your topics. Try again.");
+      return;
     }
+    router.push("/");
   }
 
   const loaded = saved !== null;
   const unchanged = saved !== null && sameSet(selection, saved);
-  const saveDisabled = !loaded || selection.length === 0 || unchanged || saving;
+  const saveDisabled = !loaded || selection.length === 0 || unchanged;
 
   return (
     <div className="flex flex-col gap-6">

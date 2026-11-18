@@ -44,11 +44,12 @@ export function FeedView({ topics }: { topics: string[] }) {
   const [feed, setFeed] = useState<TodayFeed | null>(null);
   const [failed, setFailed] = useState(false);
 
+  const key = topics.join(",");
   const load = useCallback(() => {
     setFailed(false);
     setFeed(null);
-    api.getTodayFeed().then(setFeed, () => setFailed(true));
-  }, []);
+    api.getTodayFeed(key.split(",")).then(setFeed, () => setFailed(true));
+  }, [key]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount

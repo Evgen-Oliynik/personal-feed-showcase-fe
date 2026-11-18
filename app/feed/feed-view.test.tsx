@@ -54,6 +54,12 @@ afterEach(() => {
 });
 
 describe("FeedView", () => {
+  it("requests the feed for the given topics", async () => {
+    setup();
+    await screen.findByText("2026-11-18");
+    expect(api.getTodayFeed).toHaveBeenCalledWith(["react", "rust"]);
+  });
+
   it("shows date, topics, change link and tab counts", async () => {
     setup();
     expect(await screen.findByText("2026-11-18")).toBeInTheDocument();

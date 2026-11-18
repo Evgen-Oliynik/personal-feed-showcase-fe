@@ -1,15 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const API = "http://localhost:4000";
-
-test("feed shows 30 cards in All and 10 in each other tab", async ({
-  page,
-  request,
-}) => {
-  const put = await request.put(`${API}/topics`, {
-    data: { names: ["react", "rust"] },
+test("feed shows 30 cards in All and 10 in each other tab", async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!localStorage.getItem("pfs.topics"))
+      localStorage.setItem("pfs.topics", JSON.stringify(["react", "rust"]));
   });
-  expect(put.ok()).toBe(true);
 
   await page.goto("/");
   const cards = page.getByRole("main").locator("a[target=_blank]");

@@ -30,18 +30,14 @@ function expectedRange(width: number) {
   return { lines: null, thumb: 200 };
 }
 
-// Leave the shared backend with no topics: the other cases expect "/" to redirect.
-test.afterEach(async ({ request }) => {
-  const topics = await (await request.get(`${API}/topics`)).json();
-  for (const t of topics) await request.delete(`${API}/topics/${t.id}`);
-});
-
 test("feed layout per viewport: one column, clamp and thumbnail", async ({
   page,
-  request,
 }) => {
-  await request.put(`${API}/topics`, { data: { names: ["react", "rust"] } });
-  await page.route(`${API}/feed/today`, (route) =>
+  await page.addInitScript(() => {
+    if (!localStorage.getItem("pfs.topics"))
+      localStorage.setItem("pfs.topics", JSON.stringify(["react", "rust"]));
+  });
+  await page.route(`${API}/feed/today*`, (route) =>
     route.fulfill({ json: fixtureFeed }),
   );
   for (const vp of viewports) {
@@ -161,9 +157,12 @@ test("topics controls are at least 44x44 on smartphone and tablet", async ({
   }
 });
 
-test("chat drawer per viewport", async ({ page, request }) => {
-  await request.put(`${API}/topics`, { data: { names: ["react", "rust"] } });
-  await page.route(`${API}/feed/today`, (route) =>
+test("chat drawer per viewport", async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!localStorage.getItem("pfs.topics"))
+      localStorage.setItem("pfs.topics", JSON.stringify(["react", "rust"]));
+  });
+  await page.route(`${API}/feed/today*`, (route) =>
     route.fulfill({ json: fixtureFeed }),
   );
   const noScroll = () =>
@@ -187,7 +186,8 @@ test("chat drawer per viewport", async ({ page, request }) => {
       const feedBox = (await page.getByRole("main").boundingBox())!;
       expect(feedBox.x + feedBox.width).toBeLessThanOrEqual(box.x + 0.5);
       expect(await noScroll()).toBe(true);
-      await ask.click();
+      // The docked drawer covers the Ask button, so close it from inside.
+      await drawer.getByRole("button", { name: "Close" }).click();
       await expect(drawer).toBeHidden();
       await ask.click();
       await expect(drawer).toBeVisible();

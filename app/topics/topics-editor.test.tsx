@@ -1,16 +1,17 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiError, api } from "@/lib/api";
+import { api } from "@/lib/api";
+import { TOPICS_KEY } from "@/lib/topics-store";
 import { TopicsEditor } from "./topics-editor";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
-const topic = (name: string, id = 1) => ({ id, name, createdAt: "2026-01-01" });
-
 function setup(saved: string[] = [], suggestions = ["react", "rust", "ai"]) {
-  vi.spyOn(api, "getTopics").mockResolvedValue(saved.map((n, i) => topic(n, i)));
+  localStorage.clear();
+  if (saved.length) localStorage.setItem(TOPICS_KEY, JSON.stringify(saved));
+  vi.spyOn(globalThis, "fetch");
   vi.spyOn(api, "getSuggestions").mockResolvedValue(suggestions);
   render(<TopicsEditor />);
   return userEvent.setup();
@@ -53,7 +54,6 @@ describe("TopicsEditor", () => {
 
   it("adds a custom topic with the button and with Enter, without saving", async () => {
     const user = setup([]);
-    const replace = vi.spyOn(api, "replaceTopics");
     await screen.findByText("0/10 selected");
     await user.type(screen.getByLabelText("Custom topic"), "Elixir");
     await user.click(screen.getByRole("button", { name: "Add" }));
@@ -61,7 +61,7 @@ describe("TopicsEditor", () => {
     expect(screen.getByLabelText("Custom topic")).toHaveValue("");
     await user.type(screen.getByLabelText("Custom topic"), "c++{Enter}");
     expect(screen.getByRole("button", { name: "Remove c++" })).toBeInTheDocument();
-    expect(replace).not.toHaveBeenCalled();
+    expect(localStorage.getItem(TOPICS_KEY)).toBeNull();
   });
 
   it("disables Save when empty, unchanged, or in flight", async () => {
@@ -76,17 +76,10 @@ describe("TopicsEditor", () => {
     expect(saveButton()).toBeDisabled();
 
     await user.click(screen.getByRole("button", { name: "ai" }));
-    let resolve!: () => void;
-    const replace = vi.spyOn(api, "replaceTopics").mockReturnValue(
-      new Promise((r) => {
-        resolve = () => r([]);
-      }),
-    );
     await user.click(saveButton());
-    expect(saveButton()).toBeDisabled();
-    expect(replace).toHaveBeenCalledWith(["ai"]);
-    resolve();
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/"));
+    expect(JSON.parse(localStorage.getItem(TOPICS_KEY)!)).toEqual(["ai"]);
+    expect(push).toHaveBeenCalledWith("/");
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("blocks an 11th topic", async () => {
@@ -100,23 +93,24 @@ describe("TopicsEditor", () => {
     expect(screen.queryByRole("button", { name: "Remove extra" })).toBeNull();
   });
 
-  it("shows the 400 message", async () => {
+  it("shows the invalid-name message client-side", async () => {
     const user = setup([]);
-    vi.spyOn(api, "replaceTopics").mockRejectedValue(new ApiError(400, "bad"));
-    await user.click(await screen.findByRole("button", { name: "ai" }));
-    await user.click(saveButton());
-    expect(await screen.findByRole("alert")).toHaveTextContent(
+    await screen.findByText("0/10 selected");
+    await user.type(screen.getByLabelText("Custom topic"), "bad!name{Enter}");
+    expect(screen.getByRole("alert")).toHaveTextContent(
       "Use 1–40 letters, digits, spaces or . + # -",
     );
-    expect(push).not.toHaveBeenCalled();
-    expect(saveButton()).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Remove bad!name" })).toBeNull();
   });
 
-  it("shows the 422 message", async () => {
+  it("shows an error and stays when the write fails", async () => {
     const user = setup([]);
-    vi.spyOn(api, "replaceTopics").mockRejectedValue(new ApiError(422, "too many"));
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("denied");
+    });
     await user.click(await screen.findByRole("button", { name: "ai" }));
     await user.click(saveButton());
-    expect(await screen.findByRole("alert")).toHaveTextContent("You can follow up to 10 topics");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Could not save");
+    expect(push).not.toHaveBeenCalled();
   });
 });

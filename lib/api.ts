@@ -1,12 +1,6 @@
 export type MediaType = "read" | "watch" | "listen";
 export type MediaSourceId = "devto" | "medium" | "youtube" | "itunes";
 
-export interface Topic {
-  id: number;
-  name: string;
-  createdAt: string;
-}
-
 export interface MediaItem {
   id: number;
   url: string;
@@ -68,13 +62,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  getTopics: () => request<Topic[]>("/topics"),
   getSuggestions: () => request<string[]>("/topics/suggestions"),
-  addTopic: (name: string) =>
-    request<Topic>("/topics", { method: "POST", body: JSON.stringify({ name }) }),
-  replaceTopics: (names: string[]) =>
-    request<Topic[]>("/topics", { method: "PUT", body: JSON.stringify({ names }) }),
-  deleteTopic: (id: number) =>
-    request<void>(`/topics/${id}`, { method: "DELETE" }),
-  getTodayFeed: () => request<TodayFeed>("/feed/today", { cache: "no-store" }),
+  getTodayFeed: (topics: string[]) =>
+    request<TodayFeed>(`/feed/today?topics=${encodeURIComponent(topics.join(","))}`, {
+      cache: "no-store",
+    }),
 };

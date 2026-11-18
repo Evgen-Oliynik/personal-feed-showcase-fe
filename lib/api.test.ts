@@ -28,31 +28,28 @@ describe("api", () => {
     expect(apiUrl("/feed/today")).toBe("https://api.example.test/feed/today");
   });
 
-  it("GETs and parses JSON", async () => {
-    fetchMock.mockResolvedValue(json([{ id: 1, name: "react", createdAt: "x" }]));
-    const topics = await api.getTopics();
-    expect(topics[0].name).toBe("react");
-    expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/topics$/);
+  it("GETs suggestions and parses JSON", async () => {
+    fetchMock.mockResolvedValue(json(["react"]));
+    await expect(api.getSuggestions()).resolves.toEqual(["react"]);
+    expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/topics\/suggestions$/);
   });
 
-  it("POSTs a JSON body", async () => {
-    fetchMock.mockResolvedValue(json({ id: 2, name: "rust", createdAt: "x" }, 201));
-    await api.addTopic("rust");
-    const init = fetchMock.mock.calls[0][1]!;
-    expect(init.method).toBe("POST");
-    expect(init.body).toBe(JSON.stringify({ name: "rust" }));
-    expect(init.headers).toMatchObject({ "Content-Type": "application/json" });
+  it("sends the topic list to the feed", async () => {
+    fetchMock.mockResolvedValue(json({ items: [] }));
+    await api.getTodayFeed(["react", "c++"]);
+    expect(String(fetchMock.mock.calls[0][0])).toMatch(
+      /\/feed\/today\?topics=react%2Cc%2B%2B$/,
+    );
   });
 
   it("returns undefined on 204", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
-    await expect(api.deleteTopic(3)).resolves.toBeUndefined();
-    expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/topics\/3$/);
+    await expect(api.getSuggestions()).resolves.toBeUndefined();
   });
 
   it("throws ApiError with the server message", async () => {
     fetchMock.mockResolvedValue(json({ message: "Topic exists" }, 409));
-    const err = await api.addTopic("rust").catch((e: unknown) => e);
+    const err = await api.getSuggestions().catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ApiError);
     expect(err).toMatchObject({ status: 409, message: "Topic exists" });
   });
@@ -61,7 +58,7 @@ describe("api", () => {
     fetchMock.mockResolvedValue(
       new Response("boom", { status: 500, statusText: "Server Error" }),
     );
-    await expect(api.getTodayFeed()).rejects.toMatchObject({
+    await expect(api.getTodayFeed(["a"])).rejects.toMatchObject({
       status: 500,
       message: "Server Error",
     });
@@ -69,6 +66,6 @@ describe("api", () => {
 
   it("propagates network failures", async () => {
     fetchMock.mockRejectedValue(new TypeError("network"));
-    await expect(api.getTopics()).rejects.toThrow("network");
+    await expect(api.getSuggestions()).rejects.toThrow("network");
   });
 });

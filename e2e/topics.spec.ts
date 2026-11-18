@@ -30,7 +30,15 @@ test("pick, save, come back, change, save", async ({ page }) => {
     await expect(cardsOf(page, t).first(), `cards of ${t}`).toBeVisible();
   }
 
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Today's feed", exact: true })).toBeVisible();
+  for (const t of [first, second, "elixir"]) {
+    await expect(cardsOf(page, t).first(), `cards of ${t} after reload`).toBeVisible();
+  }
+
   await page.getByRole("link", { name: "Topics", exact: true }).click();
+  await expect(page).toHaveURL(/\/topics$/);
+  await page.reload();
   await expect(chips.getByRole("listitem")).toHaveCount(3);
   await expect(chips).toContainText(first);
   await expect(chips).toContainText("elixir");
