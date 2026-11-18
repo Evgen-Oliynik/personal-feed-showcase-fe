@@ -18,6 +18,7 @@ test("pick, save, come back, change, save", async ({ page }) => {
     .getByRole("button", { pressed: false });
   const first = (await suggestions.nth(0).innerText()).trim();
   await suggestions.nth(0).click();
+  const second = (await suggestions.nth(0).innerText()).trim();
   await suggestions.nth(0).click();
   await page.getByLabel("Custom topic").fill("elixir");
   await page.getByLabel("Custom topic").press("Enter");
@@ -25,7 +26,7 @@ test("pick, save, come back, change, save", async ({ page }) => {
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("heading", { name: "Today's feed", exact: true })).toBeVisible();
-  for (const t of [first, "elixir"]) {
+  for (const t of [first, second, "elixir"]) {
     await expect(cardsOf(page, t).first(), `cards of ${t}`).toBeVisible();
   }
 
