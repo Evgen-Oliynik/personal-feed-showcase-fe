@@ -3,12 +3,10 @@
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { MAX_TOPICS, readTopics, writeTopics } from "@/lib/topics-store";
+import { isValidTopicName, MAX_TOPICS, readTopics, writeTopics } from "@/lib/topics-store";
 
 const LIMIT_MESSAGE = "You can follow up to 10 topics";
 const INVALID_MESSAGE = "Use 1–40 letters, digits, spaces or . + # -";
-
-const NAME = /^[\p{L}\p{N} .+#-]{1,40}$/u;
 
 const chip =
   "inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border px-4 py-2 text-sm";
@@ -53,7 +51,7 @@ export function TopicsEditor() {
   function add(name: string) {
     const value = normalize(name);
     if (!value || selection.includes(value)) return false;
-    if (!NAME.test(value)) {
+    if (!isValidTopicName(value)) {
       setError(INVALID_MESSAGE);
       return false;
     }

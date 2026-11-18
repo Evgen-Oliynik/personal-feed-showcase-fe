@@ -103,6 +103,16 @@ describe("TopicsEditor", () => {
     expect(screen.queryByRole("button", { name: "Remove bad!name" })).toBeNull();
   });
 
+  it("rejects a non-Latin name", async () => {
+    const user = setup([]);
+    await screen.findByText("0/10 selected");
+    await user.type(screen.getByLabelText("Custom topic"), "кава{Enter}");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Use 1–40 letters, digits, spaces or . + # -",
+    );
+    expect(screen.queryByRole("button", { name: "Remove кава" })).toBeNull();
+  });
+
   it("shows an error and stays when the write fails", async () => {
     const user = setup([]);
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {

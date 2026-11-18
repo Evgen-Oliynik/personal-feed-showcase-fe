@@ -1,7 +1,12 @@
 export const TOPICS_KEY = "pfs.topics";
 export const MAX_TOPICS = 10;
 
-const NAME = /^[\p{L}\p{N} .+#-]{1,40}$/u;
+const NAME = /^[a-z0-9][a-z0-9 .+#-]*$/;
+
+/** Mirrors the backend's rule: expects an already trimmed, collapsed, lowercased name. */
+export function isValidTopicName(name: string): boolean {
+  return name.length >= 1 && name.length <= 40 && NAME.test(name);
+}
 
 function clean(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -9,7 +14,7 @@ function clean(value: unknown): string[] {
   for (const entry of value) {
     if (typeof entry !== "string") continue;
     const name = entry.trim().replace(/\s+/g, " ").toLowerCase();
-    if (NAME.test(name) && !names.includes(name)) names.push(name);
+    if (isValidTopicName(name) && !names.includes(name)) names.push(name);
     if (names.length === MAX_TOPICS) break;
   }
   return names;

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { readTopics, TOPICS_KEY, writeTopics } from "./topics-store";
+import { isValidTopicName, readTopics, TOPICS_KEY, writeTopics } from "./topics-store";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -44,5 +44,21 @@ describe("topics store", () => {
     });
     expect(readTopics()).toEqual([]);
     expect(writeTopics(["react"])).toBe(false);
+  });
+
+  it("validates names like the backend", () => {
+    for (const ok of ["c#", "node.js", "c++", "machine learning", "a".repeat(40)]) {
+      expect(isValidTopicName(ok)).toBe(true);
+    }
+    for (const bad of ["кава", "café", "-x", "", "a".repeat(41)]) {
+      expect(isValidTopicName(bad)).toBe(false);
+    }
+  });
+
+  it("drops stored non-Latin and leading-symbol names on read", () => {
+    localStorage.setItem(TOPICS_KEY, JSON.stringify(["кава", "-x", "react"]));
+    expect(readTopics()).toEqual(["react"]);
+    localStorage.setItem(TOPICS_KEY, JSON.stringify(["кава"]));
+    expect(readTopics()).toEqual([]);
   });
 });
