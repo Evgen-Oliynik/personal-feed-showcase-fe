@@ -1,0 +1,39 @@
+import { expect, test } from "@playwright/test";
+
+const API = "http://localhost:4000";
+
+test.afterEach(async ({ request }) => {
+  const topics = await (await request.get(`${API}/topics`)).json();
+  for (const t of topics) await request.delete(`${API}/topics/${t.id}`);
+});
+
+test("ask a question and see a source link to a URL from today's feed", async ({
+  page,
+  request,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await request.put(`${API}/topics`, { data: { names: ["react", "rust"] } });
+  const feed = await (await request.get(`${API}/feed/today`)).json();
+  const urls = new Set<string>(feed.items.map((i: { url: string }) => i.url));
+
+  await page.goto("/");
+  const drawer = page.getByRole("complementary", {
+    name: "Ask about today's feed",
+  });
+  await expect(drawer).toBeVisible();
+  await drawer.getByLabel("Question").fill("react");
+  await drawer.getByRole("button", { name: "Send" }).click();
+
+  const sources = drawer.getByRole("region", { name: "Sources" });
+  await expect(sources).toBeVisible();
+  const href = await sources.getByRole("link").first().getAttribute("href");
+  expect(urls.has(href!)).toBe(true);
+  await expect(sources.getByRole("link").first()).toHaveAttribute(
+    "target",
+    "_blank",
+  );
+  await expect(
+    drawer.getByTestId("answer").getByRole("link", { name: "[1]" }),
+  ).toBeVisible();
+  await expect(drawer.getByRole("button", { name: "Send" })).toBeDisabled();
+});

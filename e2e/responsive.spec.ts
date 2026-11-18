@@ -151,3 +151,58 @@ test("topics controls are at least 44x44 on smartphone and tablet", async ({
     expect(fontSize).toBeGreaterThanOrEqual(16);
   }
 });
+
+test("chat drawer per viewport", async ({ page, request }) => {
+  await request.put(`${API}/topics`, { data: { names: ["react", "rust"] } });
+  await page.route(`${API}/feed/today`, (route) =>
+    route.fulfill({ json: fixtureFeed }),
+  );
+  const noScroll = () =>
+    page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    );
+  for (const vp of viewports) {
+    await page.setViewportSize({ width: vp.width, height: vp.height });
+    await page.goto("/");
+    const drawer = page.getByRole("complementary", {
+      name: "Ask about today's feed",
+    });
+    const ask = page.getByRole("button", { name: "Ask", exact: true });
+    await expect(page.getByTestId("end-of-feed")).toBeVisible();
+    await expect(ask, `Ask visible @ ${vp.name}`).toBeVisible();
+    expect(await noScroll(), `no h-scroll @ ${vp.name}`).toBe(true);
+    if (vp.width >= 1280) {
+      await expect(drawer, `open @ ${vp.name}`).toBeVisible();
+      const box = (await drawer.boundingBox())!;
+      expect(Math.round(box.width)).toBe(400);
+      const feedBox = (await page.getByRole("main").boundingBox())!;
+      expect(feedBox.x + feedBox.width).toBeLessThanOrEqual(box.x + 0.5);
+      expect(await noScroll()).toBe(true);
+      await ask.click();
+      await expect(drawer).toBeHidden();
+      await ask.click();
+      await expect(drawer).toBeVisible();
+    } else {
+      await expect(drawer, `closed @ ${vp.name}`).toBeHidden();
+      await ask.click();
+      await expect(drawer).toBeVisible();
+      const box = (await drawer.boundingBox())!;
+      const fullScreen = vp.width < 640 || vp.height < 500;
+      expect(Math.round(box.width), `drawer width @ ${vp.name}`).toBe(
+        fullScreen ? vp.width : 400,
+      );
+      if (fullScreen) expect(Math.round(box.height)).toBe(vp.height);
+      else expect(Math.round(box.x + box.width)).toBe(vp.width);
+      const fs = await drawer
+        .getByLabel("Question")
+        .evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+      expect(fs).toBeGreaterThanOrEqual(16);
+      expect(await noScroll(), `no h-scroll open @ ${vp.name}`).toBe(true);
+      await page.keyboard.press("Escape");
+      await expect(drawer).toBeHidden();
+      await ask.click();
+      await drawer.getByRole("button", { name: "Close" }).click();
+      await expect(drawer).toBeHidden();
+    }
+  }
+});

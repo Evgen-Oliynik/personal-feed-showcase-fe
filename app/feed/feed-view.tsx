@@ -10,6 +10,7 @@ import {
   type MediaType,
   type TodayFeed,
 } from "@/lib/api";
+import { ChatDrawer } from "./chat-drawer";
 import { formatDuration, relativeDate } from "./format";
 
 const TABS = [
@@ -61,92 +62,94 @@ export function FeedView({ topics }: { topics: string[] }) {
     : [];
 
   return (
-    <main className="mx-auto w-full flex-1 p-4 xl:max-w-[960px]">
-      <h1 className="text-xl font-semibold">Today&apos;s feed</h1>
-      {feed && <p className="text-sm text-zinc-500">{feed.date}</p>}
+    <ChatDrawer>
+      <main className="mx-auto w-full flex-1 p-4 xl:max-w-[960px]">
+        <h1 className="text-xl font-semibold">Today&apos;s feed</h1>
+        {feed && <p className="text-sm text-zinc-500">{feed.date}</p>}
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <ul aria-label="Active topics" className="flex flex-wrap gap-2">
-          {topics.map((t) => (
-            <li
-              key={t}
-              className="rounded-full bg-zinc-100 px-3 py-1 text-sm dark:bg-zinc-800"
-            >
-              {t}
-            </li>
-          ))}
-        </ul>
-        <Link
-          href="/topics"
-          className="inline-flex min-h-11 items-center text-sm underline lg:min-h-0"
-        >
-          Change topics
-        </Link>
-      </div>
-
-      <nav
-        aria-label="Feed tabs"
-        className="mt-4 flex gap-2 overflow-x-auto border-b border-zinc-200 dark:border-zinc-800"
-      >
-        {TABS.map(({ key, label }) => {
-          const text =
-            key === "all" || !feed
-              ? label
-              : `${label} ${feed.counts[key]}/${feed.limits[key]}`;
-          const active = key === tab;
-          return (
-            <Link
-              key={key}
-              href={key === "all" ? "/" : `/?tab=${key}`}
-              aria-current={active ? "page" : undefined}
-              className={`inline-flex min-h-11 shrink-0 items-center whitespace-nowrap border-b-2 px-3 lg:min-h-0 lg:py-2 ${
-                active
-                  ? "border-foreground font-semibold"
-                  : "border-transparent text-zinc-500"
-              }`}
-            >
-              {text}
-            </Link>
-          );
-        })}
-      </nav>
-
-      <div className="mt-4 flex flex-col gap-3">
-        {failed ? (
-          <div role="alert" className="flex flex-col items-start gap-2">
-            <p>Couldn&apos;t load today&apos;s feed</p>
-            <button
-              type="button"
-              onClick={load}
-              className="min-h-11 rounded border border-zinc-400 px-4 lg:min-h-0 lg:py-1"
-            >
-              Retry
-            </button>
-          </div>
-        ) : !feed ? (
-          [0, 1, 2].map((i) => (
-            <div
-              key={i}
-              data-testid="skeleton-card"
-              className="h-28 animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-800"
-            />
-          ))
-        ) : (
-          <>
-            {items.map((item) => (
-              <Card key={item.id} item={item} />
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <ul aria-label="Active topics" className="flex flex-wrap gap-2">
+            {topics.map((t) => (
+              <li
+                key={t}
+                className="rounded-full bg-zinc-100 px-3 py-1 text-sm dark:bg-zinc-800"
+              >
+                {t}
+              </li>
             ))}
-            <EndOfFeed
-              subline={
-                items.length === 0 && tab !== "all"
-                  ? `Nothing new to ${tab} today`
-                  : "Come back tomorrow for a fresh feed"
-              }
-            />
-          </>
-        )}
-      </div>
-    </main>
+          </ul>
+          <Link
+            href="/topics"
+            className="inline-flex min-h-11 items-center text-sm underline lg:min-h-0"
+          >
+            Change topics
+          </Link>
+        </div>
+
+        <nav
+          aria-label="Feed tabs"
+          className="mt-4 flex gap-2 overflow-x-auto border-b border-zinc-200 dark:border-zinc-800"
+        >
+          {TABS.map(({ key, label }) => {
+            const text =
+              key === "all" || !feed
+                ? label
+                : `${label} ${feed.counts[key]}/${feed.limits[key]}`;
+            const active = key === tab;
+            return (
+              <Link
+                key={key}
+                href={key === "all" ? "/" : `/?tab=${key}`}
+                aria-current={active ? "page" : undefined}
+                className={`inline-flex min-h-11 shrink-0 items-center whitespace-nowrap border-b-2 px-3 lg:min-h-0 lg:py-2 ${
+                  active
+                    ? "border-foreground font-semibold"
+                    : "border-transparent text-zinc-500"
+                }`}
+              >
+                {text}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="mt-4 flex flex-col gap-3">
+          {failed ? (
+            <div role="alert" className="flex flex-col items-start gap-2">
+              <p>Couldn&apos;t load today&apos;s feed</p>
+              <button
+                type="button"
+                onClick={load}
+                className="min-h-11 rounded border border-zinc-400 px-4 lg:min-h-0 lg:py-1"
+              >
+                Retry
+              </button>
+            </div>
+          ) : !feed ? (
+            [0, 1, 2].map((i) => (
+              <div
+                key={i}
+                data-testid="skeleton-card"
+                className="h-28 animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-800"
+              />
+            ))
+          ) : (
+            <>
+              {items.map((item) => (
+                <Card key={item.id} item={item} />
+              ))}
+              <EndOfFeed
+                subline={
+                  items.length === 0 && tab !== "all"
+                    ? `Nothing new to ${tab} today`
+                    : "Come back tomorrow for a fresh feed"
+                }
+              />
+            </>
+          )}
+        </div>
+      </main>
+    </ChatDrawer>
   );
 }
 
