@@ -53,6 +53,23 @@ test("feed layout per viewport: one column, clamp and thumbnail", async ({
       () => document.documentElement.scrollWidth <= window.innerWidth,
     );
     expect(fits, `no h-scroll @ ${vp.name}`).toBe(true);
+    const end = page.getByTestId("end-of-feed");
+    await end.scrollIntoViewIfNeeded();
+    await expect(end, `end block @ ${vp.name}`).toBeVisible();
+    const endBox = (await end.boundingBox())!;
+    const lastBox = (await cards.last().boundingBox())!;
+    expect(endBox.y, `end after last card @ ${vp.name}`).toBeGreaterThanOrEqual(
+      lastBox.y + lastBox.height - 1,
+    );
+    expect(Math.round(endBox.width), `end spans column @ ${vp.name}`).toBe(
+      Math.round(lastBox.width),
+    );
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+      `no h-scroll with end block @ ${vp.name}`,
+    ).toBe(true);
     const lefts = await cards.evaluateAll((els) =>
       els.map((e) => Math.round(e.getBoundingClientRect().left)),
     );

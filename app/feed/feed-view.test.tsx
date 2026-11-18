@@ -151,3 +151,40 @@ describe("formatDuration", () => {
     expect(formatDuration(3600)).toBe("1:00:00");
   });
 });
+
+describe("FeedView end of feed", () => {
+  it("shows the block after the last card of a full tab", async () => {
+    setup("read");
+    await screen.findByText("Title 1");
+    const end = screen.getByTestId("end-of-feed");
+    expect(end).toHaveTextContent("That's all for today");
+    expect(end).toHaveTextContent("Come back tomorrow for a fresh feed");
+    expect(end.previousElementSibling).toHaveTextContent("Title 2");
+    expect(end.nextElementSibling).toBeNull();
+  });
+
+  it.each(["read", "watch", "listen"] as const)(
+    "shows only the block with a %s subline on an empty tab",
+    async (t) => {
+      tab = t;
+      vi.spyOn(api, "getTodayFeed").mockResolvedValue({
+        ...feed,
+        counts: { read: 0, watch: 0, listen: 0 },
+        items: [],
+      });
+      render(<FeedView topics={["react"]} />);
+      const end = await screen.findByTestId("end-of-feed");
+      expect(end).toHaveTextContent("That's all for today");
+      expect(end).toHaveTextContent(`Nothing new to ${t} today`);
+      expect(end.parentElement?.children).toHaveLength(1);
+    },
+  );
+
+  it("is not shown while loading or on error", async () => {
+    tab = null;
+    vi.spyOn(api, "getTodayFeed").mockRejectedValue(new Error("x"));
+    render(<FeedView topics={["react"]} />);
+    await screen.findByRole("alert");
+    expect(screen.queryByTestId("end-of-feed")).toBeNull();
+  });
+});

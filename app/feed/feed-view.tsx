@@ -132,10 +132,30 @@ export function FeedView({ topics }: { topics: string[] }) {
             />
           ))
         ) : (
-          items.map((item) => <Card key={item.id} item={item} />)
+          <>
+            {items.map((item) => (
+              <Card key={item.id} item={item} />
+            ))}
+            <EndOfFeed
+              subline={
+                items.length === 0 && tab !== "all"
+                  ? `Nothing new to ${tab} today`
+                  : "Come back tomorrow for a fresh feed"
+              }
+            />
+          </>
         )}
       </div>
     </main>
+  );
+}
+
+function EndOfFeed({ subline }: { subline: string }) {
+  return (
+    <section data-testid="end-of-feed" className="w-full py-8 text-center">
+      <p className="font-semibold">That&apos;s all for today</p>
+      <p className="text-sm text-zinc-500">{subline}</p>
+    </section>
   );
 }
 
