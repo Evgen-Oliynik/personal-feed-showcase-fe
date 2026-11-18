@@ -1,8 +1,13 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-const API = "http://localhost:4000";
+// Cards on the rendered feed page whose topic label is exactly `topic`.
+const cardsOf = (page: Page, topic: string) =>
+  page
+    .getByRole("main")
+    .locator("a[target=_blank]")
+    .filter({ has: page.getByText(topic, { exact: true }) });
 
-test("pick, save, come back, change, save", async ({ page, request }) => {
+test("pick, save, come back, change, save", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/topics$/);
   await expect(page.getByText("Pick a few topics to start your feed")).toBeVisible();
@@ -19,9 +24,12 @@ test("pick, save, come back, change, save", async ({ page, request }) => {
   await expect(chips.getByRole("listitem")).toHaveCount(3);
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole("heading", { name: "Today's feed" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Today's feed", exact: true })).toBeVisible();
+  for (const t of [first, "elixir"]) {
+    await expect(cardsOf(page, t).first(), `cards of ${t}`).toBeVisible();
+  }
 
-  await page.getByRole("link", { name: "Topics" }).click();
+  await page.getByRole("link", { name: "Topics", exact: true }).click();
   await expect(chips.getByRole("listitem")).toHaveCount(3);
   await expect(chips).toContainText(first);
   await expect(chips).toContainText("elixir");
@@ -32,8 +40,8 @@ test("pick, save, come back, change, save", async ({ page, request }) => {
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page).toHaveURL(/\/$/);
 
-  const feed = await (await request.get(`${API}/feed/today`)).json();
-  const topics = new Set<string>(feed.items.map((i: { topic: string }) => i.topic));
-  expect(topics.has("zig")).toBe(true);
-  expect(topics.has("elixir")).toBe(false);
+  await expect(page.getByRole("heading", { name: "Today's feed", exact: true })).toBeVisible();
+  await expect(cardsOf(page, "zig").first()).toBeVisible();
+  await expect(cardsOf(page, first).first()).toBeVisible();
+  await expect(cardsOf(page, "elixir")).toHaveCount(0);
 });

@@ -133,6 +133,8 @@ test("topics controls are at least 44x44 on smartphone and tablet", async ({
     await page.goto("/topics");
     await page.getByLabel("Custom topic").fill("a");
     await page.getByRole("button", { name: "Add", exact: true }).click();
+    await page.getByLabel("Custom topic").fill("go");
+    await page.getByRole("button", { name: "Add", exact: true }).click();
     const controls = page.getByRole("main").locator("button:visible");
     const count = await controls.count();
     expect(count).toBeGreaterThan(3);
@@ -145,6 +147,13 @@ test("topics controls are at least 44x44 on smartphone and tablet", async ({
         43.9,
       );
     }
+    const goChip = page
+      .getByRole("list", { name: "Selected topics" })
+      .getByRole("listitem")
+      .filter({ hasText: "go" });
+    const goBox = (await goChip.boundingBox())!;
+    expect(goBox.width, `${vp.name} go chip`).toBeGreaterThanOrEqual(43.9);
+    expect(goBox.height, `${vp.name} go chip`).toBeGreaterThanOrEqual(43.9);
     const fontSize = await page
       .getByLabel("Custom topic")
       .evaluate((el) => parseFloat(getComputedStyle(el).fontSize));

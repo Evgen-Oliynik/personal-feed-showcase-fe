@@ -9,7 +9,7 @@ const LIMIT_MESSAGE = "You can follow up to 10 topics";
 const INVALID_MESSAGE = "Use 1–40 letters, digits, spaces or . + # -";
 
 const chip =
-  "inline-flex min-h-11 items-center rounded-full border px-4 py-2 text-sm";
+  "inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border px-4 py-2 text-sm";
 const idleChip = `${chip} border-zinc-300 dark:border-zinc-700`;
 const selectedChip = `${chip} border-blue-600 bg-blue-600 text-white`;
 
