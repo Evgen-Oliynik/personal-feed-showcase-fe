@@ -45,9 +45,7 @@ export function ChatDrawer({ children }: { children: ReactNode }) {
         aria-expanded={open}
         aria-controls="chat-drawer"
         onClick={() => setOverride(!open)}
-        className={`fixed bottom-4 right-4 z-30 min-h-11 min-w-11 rounded-full bg-foreground px-5 font-semibold text-background shadow-lg ${
-          open ? "xl:right-[416px]" : ""
-        }`}
+        className={`fixed bottom-4 right-4 z-30 min-h-11 min-w-11 rounded-full bg-foreground px-5 font-semibold text-background shadow-lg`}
       >
         Ask
       </button>

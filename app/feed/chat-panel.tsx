@@ -78,7 +78,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="min-h-11 min-w-11 rounded border border-zinc-400 px-3"
+          className="min-h-7 min-w-7 w-7 rounded border border-zinc-400"
         >
           ✕
         </button>

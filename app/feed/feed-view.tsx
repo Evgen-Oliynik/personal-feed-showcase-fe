@@ -184,8 +184,12 @@ function Card({ item }: { item: MediaItem }) {
           <span className="rounded bg-zinc-100 px-2 py-0.5 font-medium text-foreground dark:bg-zinc-800">
             {BADGE[item.type]}
           </span>
-          <span>{SOURCE[item.source]}</span>
-          <span>{item.topic}</span>
+          <span className="rounded bg-zinc-100 px-2 py-0.5 font-medium text-foreground dark:bg-zinc-800">
+            {SOURCE[item.source]}
+          </span>
+          <span className="rounded bg-zinc-100 px-2 py-0.5 font-medium text-foreground dark:bg-zinc-800">
+            {item.topic}
+          </span>
           <span>{relativeDate(item.publishedAt)}</span>
           {item.type !== "read" && item.durationSec != null && (
             <span>{formatDuration(item.durationSec)}</span>
