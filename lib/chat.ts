@@ -1,4 +1,5 @@
 import { apiUrl } from "./api";
+import { readTopics } from "./topics-store";
 
 export const NOT_COVERED = "This is not in the collected materials";
 export const UNAVAILABLE = "The assistant is unavailable right now";
@@ -78,7 +79,7 @@ export async function* askChat(
     const res = await fetch(apiUrl("/chat"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question }),
+      body: JSON.stringify({ question, topics: readTopics() }),
       signal,
     });
     if (!res.ok || !res.body) {

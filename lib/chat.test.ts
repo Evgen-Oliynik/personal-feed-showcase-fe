@@ -39,7 +39,10 @@ describe("createSseParser", () => {
 });
 
 describe("askChat", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    window.localStorage.clear();
+  });
 
   const collect = async (q: string) => {
     const out: ChatEvent[] = [];
@@ -48,6 +51,10 @@ describe("askChat", () => {
   };
 
   it("streams events from the response body", async () => {
+    window.localStorage.setItem(
+      "pfs.topics",
+      JSON.stringify(["react", "rust"]),
+    );
     const enc = new TextEncoder();
     const body = new ReadableStream<Uint8Array>({
       start(c) {
@@ -63,6 +70,7 @@ describe("askChat", () => {
     expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/chat$/);
     expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({
       question: "q",
+      topics: ["react", "rust"],
     });
   });
 

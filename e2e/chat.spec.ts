@@ -2,18 +2,17 @@ import { expect, test } from "@playwright/test";
 
 const API = "http://localhost:4000";
 
-test.afterEach(async ({ request }) => {
-  const topics = await (await request.get(`${API}/topics`)).json();
-  for (const t of topics) await request.delete(`${API}/topics/${t.id}`);
-});
-
 test("ask a question and see a source link to a URL from today's feed", async ({
   page,
   request,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await request.put(`${API}/topics`, { data: { names: ["react", "rust"] } });
-  const feed = await (await request.get(`${API}/feed/today`)).json();
+  await page.addInitScript(() =>
+    localStorage.setItem("pfs.topics", JSON.stringify(["react", "rust"])),
+  );
+  const feed = await (
+    await request.get(`${API}/feed/today?topics=react,rust`)
+  ).json();
   const urls = new Set<string>(feed.items.map((i: { url: string }) => i.url));
 
   await page.goto("/");
