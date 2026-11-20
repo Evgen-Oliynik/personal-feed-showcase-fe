@@ -1,7 +1,13 @@
 "use client";
 
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
-import { askChat, NOT_COVERED, UNAVAILABLE, type ChatSource } from "@/lib/chat";
+import {
+  askChat,
+  buildHistory,
+  NOT_COVERED,
+  UNAVAILABLE,
+  type ChatSource,
+} from "@/lib/chat";
 
 interface Turn {
   question: string;
@@ -31,6 +37,16 @@ function withLinks(text: string, sources: ChatSource[]): ReactNode[] {
   });
 }
 
+/** Sources the answer cites, in order of first citation. */
+function citedSources(text: string, sources: ChatSource[]): ChatSource[] {
+  const cited: ChatSource[] = [];
+  for (const m of text.matchAll(/\[(\d+)\]/g)) {
+    const source = sources.find((s) => s.n === Number(m[1]));
+    if (source && !cited.includes(source)) cited.push(source);
+  }
+  return cited;
+}
+
 export function ChatPanel({ onClose }: { onClose: () => void }) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [question, setQuestion] = useState("");
@@ -46,6 +62,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
     e.preventDefault();
     const q = question.trim();
     if (!q || streaming) return;
+    const history = buildHistory(turns);
     setQuestion("");
     setStreaming(true);
     setTurns((all) => [
@@ -55,7 +72,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
     const controller = new AbortController();
     abort.current = controller;
     let failed = true;
-    for await (const ev of askChat(q, controller.signal)) {
+    for await (const ev of askChat(q, history, controller.signal)) {
       if (ev.type === "sources")
         patchLast((t) => ({ ...t, sources: ev.sources }));
       else if (ev.type === "delta")
@@ -87,51 +104,54 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
         data-testid="chat-log"
         className="flex flex-1 flex-col gap-4 overflow-y-auto p-3"
       >
-        {turns.map((t, i) => (
-          <div key={i} className="flex flex-col gap-2">
-            <p className="self-end rounded-lg bg-zinc-100 px-3 py-2 break-words dark:bg-zinc-800">
-              {t.question}
-            </p>
-            {t.status === "error" ? (
-              <p role="alert">{UNAVAILABLE}</p>
-            ) : t.answer.trim() === NOT_COVERED ? (
-              <p data-testid="not-covered" className="text-sm text-zinc-500">
-                {NOT_COVERED}
+        {turns.map((t, i) => {
+          const cited = citedSources(t.answer, t.sources);
+          return (
+            <div key={i} className="flex flex-col gap-2">
+              <p className="self-end rounded-lg bg-zinc-100 px-3 py-2 break-words dark:bg-zinc-800">
+                {t.question}
               </p>
-            ) : (
-              <>
-                <p
-                  data-testid="answer"
-                  className="break-words whitespace-pre-wrap"
-                >
-                  {withLinks(t.answer, t.sources)}
+              {t.status === "error" ? (
+                <p role="alert">{UNAVAILABLE}</p>
+              ) : t.answer.trim() === NOT_COVERED ? (
+                <p data-testid="not-covered" className="text-sm text-zinc-500">
+                  {NOT_COVERED}
                 </p>
-                {t.sources.length > 0 && (
-                  <section aria-label="Sources">
-                    <h3 className="text-sm font-semibold">Sources</h3>
-                    <ul className="mt-1 flex flex-col gap-1 text-sm">
-                      {t.sources.map((s) => (
-                        <li key={s.n} className="flex items-baseline gap-2">
-                          <span className="shrink-0 rounded bg-zinc-100 px-2 py-0.5 text-xs font-medium dark:bg-zinc-800">
-                            {BADGE[s.type]}
-                          </span>
-                          <a
-                            href={s.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="min-w-0 break-words underline"
-                          >
-                            {s.title}
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                )}
-              </>
-            )}
-          </div>
-        ))}
+              ) : (
+                <>
+                  <p
+                    data-testid="answer"
+                    className="break-words whitespace-pre-wrap"
+                  >
+                    {withLinks(t.answer, t.sources)}
+                  </p>
+                  {cited.length > 0 && (
+                    <section aria-label="Sources">
+                      <h3 className="text-sm font-semibold">Sources</h3>
+                      <ul className="mt-1 flex flex-col gap-1 text-sm">
+                        {cited.map((s) => (
+                          <li key={s.n} className="flex items-baseline gap-2">
+                            <span className="shrink-0 rounded bg-zinc-100 px-2 py-0.5 text-xs font-medium dark:bg-zinc-800">
+                              {BADGE[s.type]}
+                            </span>
+                            <a
+                              href={s.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="min-w-0 break-words underline"
+                            >
+                              {s.title}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
+                </>
+              )}
+            </div>
+          );
+        })}
       </div>
       <form
         onSubmit={send}

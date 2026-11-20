@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { askChat, createSseParser, type ChatEvent } from "./chat";
+import {
+  askChat,
+  buildHistory,
+  createSseParser,
+  NOT_COVERED,
+  UNAVAILABLE,
+  type ChatEvent,
+} from "./chat";
 
 const stream = `event: sources
 data: [{"n":1,"id":1,"title":"T","url":"https://e.test/1","type":"read","source":"devto"}]
@@ -71,6 +78,7 @@ describe("askChat", () => {
     expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({
       question: "q",
       topics: ["react", "rust"],
+      history: [],
     });
   });
 
@@ -82,5 +90,48 @@ describe("askChat", () => {
       vi.fn().mockResolvedValue(new Response("x", { status: 500 })),
     );
     expect(await collect("q")).toEqual([{ type: "error" }]);
+  });
+});
+
+describe("buildHistory", () => {
+  const done = (n: number) => ({
+    question: `q${n}`,
+    answer: `a${n}`,
+    status: "done" as const,
+  });
+
+  it("keeps the last 6 pairs, oldest first, as user/assistant messages", () => {
+    const history = buildHistory([1, 2, 3, 4, 5, 6, 7, 8].map(done));
+    expect(history).toHaveLength(12);
+    expect(history[0]).toEqual({ role: "user", content: "q3" });
+    expect(history[1]).toEqual({ role: "assistant", content: "a3" });
+    expect(history[11]).toEqual({ role: "assistant", content: "a8" });
+  });
+
+  it("sends errored and not-covered turns as they were shown", () => {
+    expect(
+      buildHistory([
+        { question: "x", answer: "partial", status: "error" },
+        { question: "y", answer: NOT_COVERED, status: "done" },
+      ]).map((m) => m.content),
+    ).toEqual(["x", UNAVAILABLE, "y", NOT_COVERED]);
+  });
+
+  it("is empty without turns", () => {
+    expect(buildHistory([])).toEqual([]);
+  });
+});
+
+describe("askChat history", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("posts the given history", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () => new Response(null));
+    vi.stubGlobal("fetch", fetchMock);
+    const history = [{ role: "user" as const, content: "q" }];
+    for await (const e of askChat("next", history)) void e;
+    expect(
+      JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).history,
+    ).toEqual(history);
   });
 });

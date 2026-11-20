@@ -1,4 +1,10 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ChatEvent, ChatSource } from "@/lib/chat";
@@ -110,5 +116,55 @@ describe("ChatPanel", () => {
     );
     expect(screen.getByText("first")).toBeInTheDocument();
     expect(screen.getByText("second")).toBeInTheDocument();
+  });
+
+  it("lists only cited sources in citation order and links high n", async () => {
+    const many = Array.from({ length: 25 }, (_, i) => source(i + 1));
+    askChat.mockImplementation(() =>
+      events([
+        { type: "sources", sources: many },
+        { type: "delta", text: "First [22], then [3] and [22]." },
+        { type: "done" },
+      ]),
+    );
+    await ask("x");
+    expect(
+      (await screen.findAllByRole("link", { name: "[22]" }))[0],
+    ).toHaveAttribute("href", "https://example.test/22");
+    const items = within(
+      screen.getByRole("region", { name: "Sources" }),
+    ).getAllByRole("link");
+    expect(items.map((a) => a.textContent)).toEqual(["Source 22", "Source 3"]);
+  });
+
+  it("shows no source list when the answer cites nothing", async () => {
+    askChat.mockImplementation(() =>
+      events([
+        { type: "sources", sources: [source(1)] },
+        { type: "delta", text: "No citations." },
+        { type: "done" },
+      ]),
+    );
+    await ask("x");
+    await screen.findByText("No citations.");
+    expect(screen.queryByRole("region", { name: "Sources" })).toBeNull();
+  });
+
+  it("passes earlier turns as history", async () => {
+    askChat.mockImplementation(() =>
+      events([{ type: "delta", text: "Answer" }, { type: "done" }]),
+    );
+    const user = await ask("first");
+    await screen.findByText("Answer");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Send" })).toBeDisabled(),
+    );
+    await user.type(screen.getByLabelText("Question"), "second");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    await waitFor(() => expect(askChat).toHaveBeenCalledTimes(2));
+    expect(askChat.mock.calls[1][1]).toEqual([
+      { role: "user", content: "first" },
+      { role: "assistant", content: "Answer" },
+    ]);
   });
 });

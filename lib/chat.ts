@@ -19,6 +19,34 @@ export type ChatEvent =
   | { type: "done" }
   | { type: "error" };
 
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export const HISTORY_PAIRS = 6;
+
+interface PastTurn {
+  question: string;
+  answer: string;
+  status: "streaming" | "done" | "error";
+}
+
+/** The last 6 finished question/answer pairs, oldest first, each answer as it was shown. */
+export function buildHistory(turns: PastTurn[]): ChatMessage[] {
+  return turns
+    .filter((t) => t.status === "error" || t.answer.trim() !== "")
+    .filter((t) => t.status !== "streaming")
+    .slice(-HISTORY_PAIRS)
+    .flatMap((t): ChatMessage[] => [
+      { role: "user", content: t.question },
+      {
+        role: "assistant",
+        content: t.status === "error" ? UNAVAILABLE : t.answer.trim(),
+      },
+    ]);
+}
+
 /** Incremental SSE parser: feed it chunks, get the complete events so far. */
 export function createSseParser() {
   let buffer = "";
@@ -73,13 +101,14 @@ function parseBlock(block: string): ChatEvent | null {
 /** POST /chat and yield its SSE events; a network failure becomes one `error` event. */
 export async function* askChat(
   question: string,
+  history: ChatMessage[] = [],
   signal?: AbortSignal,
 ): AsyncGenerator<ChatEvent> {
   try {
     const res = await fetch(apiUrl("/chat"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, topics: readTopics() }),
+      body: JSON.stringify({ question, topics: readTopics(), history }),
       signal,
     });
     if (!res.ok || !res.body) {
