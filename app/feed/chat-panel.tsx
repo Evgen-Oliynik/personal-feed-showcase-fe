@@ -102,7 +102,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
       </div>
       <div
         data-testid="chat-log"
-        className="flex flex-1 flex-col gap-4 overflow-y-auto p-3"
+        className="flex flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-3"
       >
         {turns.map((t, i) => {
           const cited = citedSources(t.answer, t.sources);
